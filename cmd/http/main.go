@@ -18,36 +18,68 @@ type Route struct {
 	Handler gin.HandlerFunc
 }
 
+type RouteGroup struct {
+	Name   string
+	Prefix string
+	Routes []Route
+}
+
 /*
 List of Routes that we want to attach to the HTTP Server
 */
-var routes = []Route{
-	{
-		Name:    "Hello World",
-		Path:    "/",
-		Method:  "GET",
-		Handler: http.HelloWorld,
-	},
-	{
-		Name:    "Get User By Id",
-		Path:    "/users/:id",
-		Method:  "GET",
-		Handler: http.GetUserById,
+var rootRoutes = RouteGroup{
+	Name:   "Root Routes",
+	Prefix: "",
+	Routes: []Route{
+		{
+			Name:    "Hello World",
+			Path:    "/",
+			Method:  "GET",
+			Handler: http.HelloWorld,
+		},
 	},
 }
 
+var userRoutes = RouteGroup{
+	Name:   "User Routes",
+	Prefix: "/users",
+	Routes: []Route{
+		{
+			Name:    "Get User By Id",
+			Path:    "/:id",
+			Method:  "GET",
+			Handler: http.GetUserById,
+		},
+	},
+}
+
+var routes = []RouteGroup{
+	rootRoutes,
+	userRoutes,
+}
+
 func applyRoutes(server *gin.Engine) *gin.Engine {
-	for _, route := range routes {
-		/* I wish this was not a switch and just dynamic lookup but reflect is confusing */
-		switch route.Method {
-		case "GET":
-			server.GET(route.Path, monitoring.WrapMiddleware(route.Handler, route.Name))
-		case "POST":
-			server.POST(route.Path, monitoring.WrapMiddleware(route.Handler, route.Name))
-		case "PUT":
-			server.PUT(route.Path, monitoring.WrapMiddleware(route.Handler, route.Name))
-		case "PATCH":
-			server.PATCH(route.Path, monitoring.WrapMiddleware(route.Handler, route.Name))
+	for _, routeGroup := range routes {
+		group := server.Group(routeGroup.Prefix)
+
+		for _, route := range routeGroup.Routes {
+			/* I wish this was not a switch and just dynamic lookup but reflect is confusing */
+			switch route.Method {
+			case "GET":
+				group.GET(route.Path, monitoring.WrapMiddleware(route.Handler, route.Name))
+			case "POST":
+				group.POST(route.Path, monitoring.WrapMiddleware(route.Handler, route.Name))
+			case "PUT":
+				group.PUT(route.Path, monitoring.WrapMiddleware(route.Handler, route.Name))
+			case "PATCH":
+				group.PATCH(route.Path, monitoring.WrapMiddleware(route.Handler, route.Name))
+			case "DELETE":
+				group.DELETE(route.Path, monitoring.WrapMiddleware(route.Handler, route.Name))
+			case "HEAD":
+				group.HEAD(route.Path, monitoring.WrapMiddleware(route.Handler, route.Name))
+			case "OPTIONS":
+				group.OPTIONS(route.Path, monitoring.WrapMiddleware(route.Handler, route.Name))
+			}
 		}
 	}
 
